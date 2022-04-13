@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="xyz.itwill.mapper.ProductMapper">
+	<insert id="insertProduct">
+		<selectKey resultType="int" keyProperty="idx" order="BEFORE">
+			select product_idx.nextval from dual
+		</selectKey>
+		insert into product values(#{idx},#{memberId},#{category1},#{category2},#{title},#{price},#{content},
+		#{img, jdbcType = VARCHAR},#{img1, jdbcType = VARCHAR},#{img2, jdbcType = VARCHAR},#{img3, jdbcType = VARCHAR},#{img4, jdbcType = VARCHAR},#{img5, jdbcType = VARCHAR},sysdate,1,#{buymember, jdbcType = VARCHAR})
+	</insert>
+	
+	<!-- 사용자의 상품 수정 -->
+	<update id="updateUserProduct">
+		update product
+		<set>
+			<if test="category1!=null and category1!=''">
+				category1=#{category1},
+			</if>
+			<if test="category2!=null and category2!=''">
+				category2=#{category2},
+			</if>
+			<if test="title!=null and title!=''">
+				title=#{title},
+			</if>
+			<if test="price!=null and price!=''">
+				price=#{price},
+			</if>
+			<if test="content!=null and content!=''">
+				content=#{content},
+			</if>
+			<if test="img!=null and img!=''">
+				img=#{img},
+			</if>
+			<if test="img1!=null and img1!=''">
+				img1=#{img1},
+			</if>
+			<if test="img2!=null and img2!=''">
+				img2=#{img2},
+			</if>
+			<if test="img3!=null and img3!=''">
+				img3=#{img3},
+			</if>
+			<if test="img4!=null and img4!=''">
+				img4=#{img4},
+			</if>
+			<if test="img5!=null and img5!=''">
+				img5=#{img5}
+			</if>
+		</set>
+		  where member_id=#{memberId}
+	</update>
+	
+	<!-- 판매완료 버튼 누른 상품의 status=4(:판매완료)로 변경 -->
+	<update id="updateStatusProduct">
+		update product set status=4	where idx=#{idx} and member_id=#{memberId}
+	</update>
+	
+	<!-- 구매자가 구매하기 버튼 누르면 판매자의 상품 상태를 거래중(3)으로 변경 -->
+	<update id="updateBuyProduct">
+		update product set status=3 where idx=#{idx}
+	</update>
+
+	
+	<!-- 상품 삭제(상품 상태를 9(삭제상품)로 변경) -->
+	<update id="deleteAdminProduct">
+		update product set status=9 where idx=#{idx}
+	</update>
+	
+	<!-- 상품번호를 전달받아서 상품 검색 -->
+	<select id="selectProduct" resultType="Product">
+		select * from product where idx=#{idx}
+	</select>
+	
+	<!-- 회원마다의 상품 상태별 검색(최신 날짜 순으로 정렬) -->
+	<select id="selectStatusProductList" resultType="Product">
+		select * from product where status=#{status} and member_id=#{memberId} order by reg_date desc
+	</select>
+	
+	<!-- 회원의 상품 상태별 총 개수 -->
+	<select id="selectCountProduct" resultType="int">
+        select count(*) from product where 
+        <if test="status == 3">
+            status=#{status} and (member_id=#{memberId} or buymember=#{memberId}) 
+        </if>
+        <if test="status != 3">
+            status=#{status} and member_id=#{memberId} 
+        </if>
+    </select>
+	
+	<!-- 카테고리별 상품 출력 -->
+	<select id="selectCategoryProductList" resultType="Product">
+		select * from product where category1=#{category1} and category2=#{category2} order by reg_date desc
+	</select>
+	
+	<!-- 전체 상품 검색(최신 날짜 순으로 정렬) -->
+	<select id="selectProductList" resultType="Product">
+		select * from product order by reg_date desc
+	</select>
+	
+	<!-- 상품 상태별 페이징 처리 -->
+	<select id="selectProductPaging" resultType="Product">
+		select * from (select rownum rn, product.* from (select * from product where status=#{status} and member_id=#{memberId} order by reg_date desc) product) where rn between #{startRow} and #{endRow}
+	</select>
+	
+	
+	<resultMap type="ProductOrderJoin" id="POJResultMap">
+		<association property="product" javaType="Product">
+			<id column="idx" property="idx"/>
+			<result column="member_id" property="memberId"/>
+			<result column="title" property="title"/>
+			<result column="price" property="price"/>
+			<result column="img" property="img"/>
+			<result column="status" property="status"/>
+		</association>
+		<association property="order" javaType="Order">
+			<id column="idx" property="idx"/>
+			<result column="member_id" property="memberId"/>
+			<result column="product_idx" property="productIdx"/>
+			<result column="status" property="status"/>
+		</association>
+	</resultMap>
+	
+<!-- 	<select id="selectProductPagingList" resultMap="POJResultMap"> -->
+<!-- 		select * from (select rownum rn, poj.* from (select * from product p left join "ORDER" o on p.idx = o.product_idx where p.status=#{status} and p.member_id=#{memberId} order by p.idx desc) poj) where rn between #{startRow} and #{endRow} -->
+<!-- 	</select> -->
+	
+	<select id="selectProductPagingList" resultType="Product">
+<!-- 		select * from (select rownum rn, poj.* from (select * from product where status=#{status} and (buymember=#{memberId} or member_id=#{memberId}) order by idx desc) poj) where rn between #{startRow} and #{endRow} -->
+		
+		select * from (select rownum rn, poj.* from (select * from product where 
+		<if test="status == 3">
+			status=#{status} and (member_id=#{memberId} or buymember=#{memberId}) 
+		</if>
+		<if test="status != 3">
+			status=#{status} and member_id=#{memberId} 
+		</if>
+		order by idx desc) poj) where rn between #{startRow} and #{endRow}
+	</select>
+	
+<!-- 	상품테이블&주문테이블 조인하여 모든 컬럼 검색 -->
+	<select id="selectjoinPOList" resultMap="POJResultMap">
+		select * from product p left join "ORDER" o on p.idx = o.product_idx
+	</select>
+	
+	
+	<!-- 구매하기 버튼 누르면 buymember 컬럼에 구매자의 아이디 추가 -->
+	<update id="updateJoinBuyBtn">
+		update product set status=3, buymember=#{buymember} where idx=#{idx}
+	</update>
+	
+	<!-- 판매자가 판매하기 버튼을 누르면 구매자의 구매상품 list로 보이게끔 선택 -->
+	<select id="selectBuyList" resultType="Product">
+		select * from product where status=4 and buymember=#{buymember}
+	</select>
+	
+	
+	<select id="selectIngList" resultType="Product">
+		select * from product where status=3 and buymember=#{buymember}
+	</select>
+	<!--  상품관리 관리자 + 페이징 처리  -->
+	<select id ="selectProductAdmin" resultType ="Product">
+		select * from (select rownum rn,board.* from (select * from product order by idx desc)
+			board) where rn between #{startRow} and #{endRow} 
+	</select>
+	<select id ="selectProductCountAdmin" resultType = "int">
+		select count(*) from product
+	</select>
+	
+	<update id ="updateStatusAdmin">
+		update product set status =#{status} where idx=#{idx}
+	</update>
+	<!--
+	<select id="selectCategory1" resultType="Product">
+		select * from (select rownum rn,board.* from (select * from product order by idx desc)
+			board) where category1=#{category1} and rn between 1 and 5 ;
+	</select>
+	 <select id="selectCategory2" resultType="Product">
+		select * from (select rownum rn,board.* from (select * from product order by idx desc)
+			board) where category2=#{category2} and rn between 1 and 5 ;
+	</select>
+	-->
+	
+	<select id="selectSearch" resultType="Product">
+		select * from (select rownum rn,board.* from (select * from product where title like '%'||#{searchKeyword}||'%' order by idx desc)board) where rn between #{startRow} and #{endRow}
+	</select> 
+	
+	
+	<select id ="selectListProductTest" resultType="Product">
+		select * from (select rownum rn,board.* from (select * from product where status=1 
+			
+				<choose>
+					<when test="category1!=null and category2!=null">
+						 and category1=#{category1 , jdbcType = VARCHAR} and category2=#{category2, jdbcType = VARCHAR}  
+					</when>
+					<when test="category1!=null and category2==null">
+						 and category1=#{category1, jdbcType = VARCHAR}
+					</when>	
+					<when test="category2!= null and category1==null">
+						and category2=#{category2, jdbcType = VARCHAR}
+					</when>	
+					
+				</choose>
+			
+		order by idx desc)board) where rn between #{startRow} and #{endRow}
+	</select>
+	
+	<select id="selectSearchCount" resultType="int">
+		select count(*) from product where title like '%'||#{searchKeyword}||'%'
+	</select>
+	<select id ="selectCountProductTest" resultType="int">
+		select count(*) from product
+		<where>
+				<choose>
+					<when test="category1 != null">
+						category1=#{category1} and status= 1
+					</when>	
+					<when test="category2 != null">
+						catogory2=#{category2} and status = 1
+					</when >
+					<when test="category1 != null and category2 != null">
+						category1=#{category1} and catogory2=#{category2} and status =1
+					</when>	
+					
+				</choose>
+			</where>
+	</select>
+	
+	<select id="selectAllCount" resultType="int">
+		select count(*) from product where status=1
+	</select>
+	
+	<update id="coinPlus">
+		update member set coin = coin+#{price} where id = #{id}
+	</update>
+	<update id="coinMinus">
+		update member set coin = coin-#{price} where id = #{id}
+	</update>
+	
+</mapper>

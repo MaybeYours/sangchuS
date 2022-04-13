@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="xyz.itwill.mapper.MemberMapper">
+	<insert id="insertMember">
+		insert into member values(#{id},#{name},#{nicname},#{password},#{phone},#{account},#{payPw},0,1)
+	</insert>
+	
+	<update id="updateMember">
+		update member 
+		<set>
+			<if test="password!=null and password!=''">
+				password=#{password},
+			</if>
+			<if test="name!=null and name!=''">
+				name=#{name},
+			</if>
+			<if test="nicname!=null and nicname!=''">
+				nicname=#{nicname},
+			</if>
+			<if test="account!=null and account!=''">
+				account=#{account},
+			</if>
+			<if test="phone!=null and phone!=''">
+				phone=#{phone},
+			</if>			
+			<if test="status!=null and status!='0'">
+				status=#{status}
+			</if>
+		</set> 
+		where id=#{id}
+	</update>
+	
+	<update id="deleteMember">
+		update member set status=2 where id=#{id}
+	</update>
+	
+	<select id="selectMember" resultType="Member">
+		select * from Member where id=#{id}
+	</select>
+	
+	<select id="selectMemberList" resultType="Member">
+		select * from Member order by id 
+	</select>
+	<!-- 아이디 찾기 -->
+	<select id="findId" resultType="Member">
+		select * from Member where name=#{name} and phone=#{phone} and (status = 1 or status = 9)
+	</select>
+	
+	<!-- 비밀번호 변경 -->
+	<update id="findPassword">
+ 		update member set password=#{password} where id=#{id} and name=#{name} and phone=#{phone} and (status = 1 or status = 9)
+	</update>
+	
+	
+	<!-- 마이페이지 결제비밀번호 수정 -->
+	<update id="mypagePaypwUpdate">
+		update member set pay_pw=#{payPw} where id=#{id}
+	</update>
+	
+	
+	<!-- 상추->현금으로 환전 -->
+	<update id="exchangeCoin">
+		update member set coin=coin-#{coin} where id=#{id}
+	</update>
+	
+	<!-- 현금->상추로 환전 -->
+	<update id="exchangeCash">
+		update member set coin=coin+#{coin} where id=#{id}
+	</update>
+	
+	
+	
+	<update id="updateMemberCoin">
+		update member set coin=coin+#{coin} where id=#{id}
+	</update>
+	
+	<select id="selectMemberCount" resultType="int">
+		select count(*) from member 
+	</select>
+	
+	<select id="selectMemberListPager" resultType="Member">
+		select * from (select rownum rn, member.* from (select * from Member order by id) member) 
+			where rn between #{startRow} and #{endRow}
+	</select>
+</mapper>
